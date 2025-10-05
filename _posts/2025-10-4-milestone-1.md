@@ -1,6 +1,7 @@
 ---
 layout: post
 title: IFT6758 Demo Post
+use_math: true
 ---
 
 ## Question 1 - Data Acquisition
@@ -10,9 +11,11 @@ To retrieve play-by-play data, simply use the function retrieve_target_year_sche
 It is important to note that different game types have different logic because the gameId is constructed differently!
 
 ### Playoff games
+
 To retrieve the playoffs games data, the function will make a GET api request call to "https://api-web.nhle.com/v1/playoff-series/carousel/{season_id}" to retrieve all of the series letters (numberOfRounds) for a single season. It will then make another GET api request call to "https://api-web.nhle.com/v1/schedule/playoff-series/{season_id}/{i}" which will retrieve all the gameIds/nbOfGames for a certain round (seriesLetter). The play-by-play data will then be retrieved by looping across all the gameIds using retrieve_play_by_play_data(filepath).
 
 ### Regular season games
+
 Similarly, to retrieve regular season data, the function will make a GET api request call to "https://api.nhle.com/stats/rest/en/season", which will retrieve all of the seasonIds. We then obtain the number of 'totalRegularSeasonGames' and loop through all of the gameIds using retrieve_play_by_play(filepath) from 1 to #totalRegularSeasonGames.
 
 The retrieve_play_by_play(filepath) function creates folders and json files if they do not exist. It makes a GET api request call to "https://api-web.nhle.com/v1/gamecenter/{game_id}/play-by-play" to retrieve the play-by-play data for a specific gameId obtained from the argument. The play-by-play data is stored in its respective filepath as a .json file.
@@ -24,6 +27,7 @@ The retrieve_play_by_play(filepath) function creates folders and json files if t
 This interactive debug tool lets you retrieve downloaded games, filter by year and game type, and inspect specific events. If event coordinates are available, they are shown on the NHL rink along with game score and other details.
 
 ### Code
+
 ```python
 import ipywidgets as widgets
 from IPython.display import display, clear_output
@@ -37,12 +41,12 @@ import matplotlib.image as mpimg
 
 RINK_IMG = Path("nhl_rink.png")
 RINK_LEN = 200.0
-RINK_WIDTH = 85.0 
+RINK_WIDTH = 85.0
 
 current_year = datetime.datetime.now().year
 
 year_selector = widgets.Dropdown(
-    options=list(range(1900, current_year + 2)),  
+    options=list(range(1900, current_year + 2)),
     value=current_year,
     description="Year:",
 )
@@ -105,7 +109,7 @@ def load_play_by_play_data(season, game_type, game_id):
         return {"error": f"File not found: {path}"}
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
-    
+
 
 def retrieve_events(data):
     """
@@ -152,14 +156,14 @@ def refresh(_=None):
 
             homeTeam = (data.get("homeTeam") or {}).get("abbrev", "HOME")
             awayTeam = (data.get("awayTeam") or {}).get("abbrev", "AWAY")
-            
+
             homeScore, awayScore = last_known_score(events_list, events.value - 1)
 
             timeInPeriod  = play.get("timeInPeriod", "")
             period  = (play.get("periodDescriptor") or {}).get("number", "")
 
             if homeScore is not None and awayScore is not None:
-                
+
                 print(f"Score @ {timeInPeriod} P{period}: {homeTeam} {homeScore} – {awayTeam} {awayScore}")
             else:
                 print(f"Score @ {timeInPeriod} P{period}: (no score on this play)")
@@ -215,7 +219,7 @@ def plot_rink_with_point(x, y):
         clear_output(wait=True)
         display(fig)
 
-        
+
 
 def repopulate_game_ids(_=None):
     """
@@ -232,8 +236,8 @@ def repopulate_game_ids(_=None):
     if game_ids:
         game_id.value = game_ids[0]
     refresh()
-    
-    
+
+
 for w in (season, game_type, game_id):
     w.observe(refresh, names="value")
 
@@ -248,9 +252,49 @@ ui = widgets.VBox([controls, score_out, rink_out, out])   # controls on top, the
 display(ui)
 ```
 
-
 ## Question 3 - Tidy Data
+
+After retrieving and exploring the data, the next step is to clean and format the play-by-play information into a well-structured pandas DataFrame. This DataFrame will contains all the relevant details for events of type “shot” and “goal”.
+
+### 1. DataFrame
+
+![Screenshot](milestone1_q3.png)
+
+It is often useful to create additional features from the data available in the dataset; this process is known as feature engineering. These new features can then be used to generate insightful visualization or train models.
+
+### 2. Feature engineering
+
+First, we could use the shot coordinates (x, y) to calculate metrics such as the **distance** and **angle** of the shot relative to the goal. The **distance** can be calculated using the euclidean distance from the goal's coordinate which is typically (89, 0). Similarly, the **angle** of the shot can be calculated using basic trigonometry.
+
+Second, we can add a **shot_context** column to capture the sequence leading up to each attempt. This feature would take one of three values—**rebound**, **rush**, or **normal**—based on the previous event. Classify a shot as a **rebound** if the prior event was a shot or goal by the same team within ≤ 3 seconds. Label it **rush** if the prior event was by the other team (change of possession) and the shot occurs within ≤ 7 seconds. If neither condition holds, tag it as **normal**.
+
+Third, we could add a **shooter_shots** column which keep tracks of the total number of shots the player has taken since the beginning of the game and a **goalie_faced_shots** column which counts the total number of shots faced so far by the goalie. These features capture potential hot-hand effects for shooters and fatigue effects for goalies, which can influence shot outcomes.
 
 ## Question 4 - Simple Visualizations
 
+### 1. Comparing the shot types over all teams
+
+![Screenshot](milestone1_q4_1.png)
+
+From the figure above, we see that the most dangerous type of shots (highest goal probability) are the **bat** (28%) and the **poke** (22%). These shots have low counts which can contribute to inflate the rates, but these are the most dangerous based on the data we have.
+Among the common shot types, **deflected** and **tip-in** lead the way with a goal probability around 20%, while **backhand** and **snap** sit next at around 15%.
+
+Also, the histogram shows that **wrist** shots are by far the most common, followed by **snap** shots and **slap** shots. Next, we have the **backhand** and **tip-in** which are also fairly common.
+
+### 2. Goal percentage as a function of distance
+
+![Screenshot](milestone1_q4_2.png)
+
+The figure illustrates the correlation between the **goal probability** and the **distance** from which the shot was taken across different seasons. Using shared axes for all seasons makes comparisons straightforward and the binned plot makes the relationship immediately interpretable but can suffers from small samples. As we the **distance** increases, the **goal probability** drops rapidly. Shots that are within 5 ft has very high rates but this can also be attributed to small samples. From 10ft to 60ft, the goal probability decreases linearly from 20% to less than 5%. Beyond this point, the bumps are mostly noise due to the small number of samples.
+Also, the curves seems to remains almost identical through the different seasons. Thus, we can conclude that there's a clear correlation between these two variables which makes sense.
+
+### 3. Goal percentage as a function of both distance and shot type
+
+![Screenshot](milestone1_q4_3.png)
+
+On the above figure, we plot the **goal probability** as a function of both the **distance** and the **shot type** for the 2024 season. This view illustrate the previous relationship but individually for every type of shots. Since some type of shots are really rare, this graph suffers from small samples. However, we can identify some interesting tendency. Some shots have higher probability when the **distance** is really small while other still performs well in moderate **distance** like the slap shot for example.
+
 ## Question 5 - Advanced Visualizations
+
+$$
+$$
