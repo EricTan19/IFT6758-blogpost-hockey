@@ -296,5 +296,29 @@ On the above figure, we plot the **goal probability** as a function of both the 
 
 ## Question 5 - Advanced Visualizations
 
-$$
-$$
+### 1. Offensive zone plots 
+
+{% include shotmap_dropdown.html %}
+
+### 2. Plot Interpretation 
+
+The shot maps show that most teams generate offense from the slot area in front of the net, where chances are most dangerous. You can also see differences in team strategies some spread shots around the zone while others focus heavily near the crease. When efficiency is added, it becomes clear which teams make good use of their chances and which simply shoot a lot without scoring as much. Comparing seasons also highlights how a team’s approach can shift over time.
+
+### 3. Colorado Avalanche Analysis
+
+When you look at Colorado’s shot map from the 2016-2017 season, it’s immediately clear the team was struggling. Most of their shots came from the outside or the middle of the slot instead of right in front of the net. That usually means they couldn’t get inside or create many dangerous chances. You can also see they were shooting mostly from the right side of the zone, which made their offense pretty predictable  it doesn’t feel like a team that could attack in different ways or really apply sustained pressure.
+
+There isn’t much of a shot cluster near the crease, which shows they weren’t generating rebounds or screens, and probably weren’t winning many battles in front of the net. A lot of their shots came from “safe” areas with low scoring probability, like the blue line or along the boards. When you remember they finished last in the league that year in goals, shooting percentage, and almost everything else the shot map matches that reality: it was a team that couldn’t get to dangerous areas and lacked offensive variety.
+
+Now if you compare that to their 2020-2021 shot map, the difference is pretty striking. There’s a lot more activity right in front of the net and in the slot, and the shots are more evenly spread across the zone. It looks like a team that can actually get inside with the puck and sustain pressure instead of just shooting from the outside. You also don’t see that same one-sided pattern  the attack feels more complete and harder to defend.
+
+And when you line it up with the standings, it makes perfect sense. In 2016-2017 they were the worst team in the league. By 2020-2021, they were one of the best. The shot maps reflect that shift from a team taking whatever outside shots they could get to one that controls the zone and lives in dangerous areas.
+
+
+### 4. Buffalo Sabres vs Tampa Bay Lightning
+
+In all seasons, the Buffalo Sabres shot map shows limited red zones, indicating they generated fewer high-quality scoring chances than the league average, often shooting from the perimeter rather than from dangerous areas near the net. In contrast, the Tampa Bay Lightning’s maps displays strong red concentrations in the slot and crease areas, reflecting a strategy centered on creating high-danger chances close to goal.
+
+By 2021, Tampa Bay’s map shows an even tighter cluster of red directly in front of the net, highlighting their focus on efficiency, taking fewer but better-quality shots. This offensive precision likely contributed to their back-to-back Stanley Cup wins.
+
+Overall, the Lightning’s success appears tied to generating quality chances from prime scoring zones, while Buffalo's struggles stem from less efficient shot placement. However, these maps provide only part of the story, as factors like defense, goaltending, and player skill also play key roles in overall performance.
