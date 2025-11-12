@@ -92,4 +92,161 @@ The graph below shows how well each model's predicted probabilities match the tr
 
 [Logistic regression with distance and angle from net](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/syty1dfp?nw=nwusererictan)
 
+
+
+## Give it your best shot!
+
+In this section, our goal was to design the best possible model to predict the probability that a shot results in a goal.
+
+### Approaches Explored
+
+To achieve this, we experimented with several model families and training strategies:
+
+Random Forests: A robust ensemble model, combined with recursive feature elimination (RFECV) to reduce dimensionality and remove redundant variables.
+
+Linear SVM with Calibration: A LinearSVC combined with a CalibratedClassifierCV to produce well-calibrated probabilities instead of raw decision margins.
+
+SVM with PCA: Included a principal component analysis step to limit overfitting and test whether the principal components capture meaningful variance in shot features.
+
+SVM without PCA: Served as a baseline to directly compare the effect of dimensionality reduction.
+
+Validation Strategies:
+
+- StratifiedKFold, to maintain class balance between goals and non-goals in each fold.
+
+- TimeSeriesSplit, to simulate a more realistic temporal validation by preserving the chronological order of games.
+
+Multilayer Perceptron : Tested several architectures with early stopping, regularization , and hyperparameter optimization using RandomizedSearchCV. These models proved particularly effective at capturing nonlinear interactions among shot features.
+
+### Model Performance Summary
+
+| Model                     | Validation Accuracy | AUC (Validation) | 
+|----------------------------|--------------------:|-----------------:|
+| **Random Forest**          | 0.9100             | 0.7311 | 
+| **SVM (Linear, Calibrated)** | 0.9050             | 0.7224 |
+| **SVM + PCA**              | 0.9050             | 0.6185 |
+| **SVM (TimeSeriesSplit)**  | 0.9050             | 0.7224 |
+| **MLP (Neural Network)**   | **0.9097**         | **0.7613** |
+
+
+### Model Experiments
+
+| Model                          | Wandb Run Link |
+|--------------------------------|---------------|
+| **Random Forest**              | [Link](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/sc0x247w?nw=nwuservissnu) |
+| **SVM (Linear, Calibrated)**   | [Link](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/h1103sbc?nw=nwuservissnu) |
+| **SVM + PCA**                  | [Link](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/64igwrhx?nw=nwuservissnu) |
+| **SVM (TimeSeriesSplit)**      | [Link](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/zd23h07h?nw=nwuservissnu) |
+| **MLP (Neural Network)**       | [Link](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/s7z3zhct?nw=nwuservissnu) |
+
+#### Interpretation
+
+The MLP model achieved the best overall performance, both in AUC (0.7613) and in accuracy (≈0.90), showing its ability to capture nonlinear patterns between shot features and goal probability.
+
+The Random Forest performed strongly as well, slightly behind the MLP in AUC but still demonstrating good generalization.
+
+The SVM models provided solid and consistent performance, though the variant with PCA underperformed , suggesting that dimensionality reduction may have removed some important discriminative information.
+
+The TimeSeriesSplit version of SVM confirmed that temporal validation did not significantly degrade performance, indicating stability over time.
+
+Note: While accuracy values are relatively close across models, the AUC score is the most important metric here , it measures how well each model distinguishes between goals and non-goals, regardless of the decision threshold.
+
+### First Approach : **Random Forest**
+For the first experiment, we implemented a Random Forest classifier to establish a strong nonlinear baseline for predicting the probability that a shot results in a goal. 
+
+We integrated the classifier into a scikit-learn pipeline that included imputation of missing values, feature scaling, and categorical encoding using an OrdinalEncoder. To improve generalization and reduce dimensionality, we added a recursive feature elimination with cross-validation (RFECV) step, which automatically selected the most informative features before training.
+
+A RandomizedSearchCV was applied over key hyperparameters,  such as the number of estimators, maximum tree depth, and minimum samples per split and leaf , using a K-Fold cross-validation strategy. 
+
+### Second Approach: **SVM (Linear, Calibrated)**
+
+For the second experiment, we trained a Linear SVM classifier.
+
+This model was integrated into the same pipeline , ensuring consistent preprocessing steps . We performed a RandomizedSearchCV over the regularization parameter C using a stratifiedkfold cross-validation to maintain class balance between goals and non-goals in each fold.
+
+
+### Third Approach: SVM with PCA
+In this third experiment, we extended the linear SVM approach by incorporating Principal Component Analysis into the training pipeline. The objective was to evaluate whether dimensionality reduction could improve model generalization by removing redundant or noisy features.
+
+The pipeline included the same preprocessing steps , followed by a PCA transformation. A CalibratedClassifierCV was again used to provide probabilistic outputs. We tuned both the regularization parameter (C) of the SVM and the number of PCA components using RandomizedSearchCV with a StratifiedKFold cross-validation strategy.
+
+Although this version slightly reduced overfitting, the overall performance did not improve compared to the standard SVM. The AUC dropped marginally, suggesting that important information might have been lost during dimensionality reduction.
+
+### Fourth Approach: SVM (TimeSeriesSplit)
+For the fourth experiment, we kept the linear calibrated SVM architecture but changed the cross-validation strategy to a TimeSeriesSplit approach.
+The goal was to make the validation process more realistic from a temporal perspective, ensuring that the model was always trained on earlier games and validated on later ones .
+
+This setup is particularly relevant in sports analytics, where player performance and team dynamics evolve over time.
+The preprocessing pipeline remained consistent with previous models, and the SVM regularization parameter (C) was optimized using RandomizedSearchCV with five temporal splits.
+
+The results showed that the model maintained a similar level of accuracy and AUC as the standard cross-validation approach, indicating strong temporal stability.
+
+
+### Fifth Approach : MLP (Neural Network)
+For the final experiment, we implemented a Multilayer Perceptron , a type of feed-forward neural network  to explore whether a nonlinear, high-capacity model could capture more complex relationships between shot features and goal probability.
+
+To improve generalization and avoid overfitting, we introduced several techniques:
+
+- Regularization via the alpha parameter,
+
+- Early stopping based on validation loss,
+
+- Batch training with different batch sizes ,
+
+- Hyperparameter tuning through RandomizedSearchCV across architecture size, learning rate, and regularization strength.
+
+This model was trained within the same pipeline structure and evaluated using StratifiedKFold cross-validation to maintain class balance. The MLP achieved the highest AUC and accuracy among all tested models, indicating that its nonlinear transformations were able to capture deeper interactions between spatial and contextual shot features.
+
+### Best Model: MLP (Neural Network)
+
+Among all the models tested, the Multilayer Perceptron  emerged as the best-performing model in terms of both AUC and overall calibration.
+Unlike the simpler linear models, the MLP was able to capture nonlinear interactions between features such as shot angle, distance, speed, and rebound , variables that interact in complex ways when determining the probability of a goal.
+
+Thanks to regularization , early stopping, and hyperparameter tuning through RandomizedSearchCV, the model achieved strong generalization on the validation set . Its reliability curve and goal-rate analysis confirmed that it produced well-calibrated probabilities across the entire range of predicted values.
+
+Therefore, we selected the MLP as our final model to evaluate on the holdout test set.
+
+### ROC Curve Comparison - All Models
+
+![ROC Curve Comparison – All Models](milestone2_roc_all_models.png)
+
+This figure compares the ROC curves of all five models tested.
+The MLP (purple curve) achieved the highest AUC (0.7613), showing the best ability to discriminate between shots that resulted in goals and those that did not.
+The Random Forest followed closely (AUC = 0.7535), while the SVM models performed slightly lower, particularly the SVM + PCA, which lost some discriminative power due to dimensionality reduction.
+
+The ROC analysis confirms that the MLP generalizes best across probability thresholds, balancing sensitivity and specificity more effectively than other models.
+
+### Goal Rate by Predicted Probability Percentile - Comparison
+![ROC Curve Comparison – All Models](milestone2_goal_rate_comparison.png)
+
+This figure shows the goal rate (Goals / Shots) across deciles of predicted shot probability for each model.
+Ideally, models should display a monotonic increase , meaning that higher predicted probabilities correspond to a higher proportion of goals.
+
+The MLP (purple curve) and Random Forest (blue curve) exhibit the clearest and most consistent upward trends.
+The SVM + PCA curve, however, appears less stable, suggesting that dimensionality reduction may have lost some discriminative information.
+
+Overall, this analysis reinforces the conclusion that the MLP produces the most well-calibrated and discriminative predictions.
+
+### Cumulative % of Goals - Comparison
+
+![Cumulative % of Goals – Comparison](milestone2_cumulative_goals_comparison.png)
+
+This cumulative goal curve illustrates how effectively each model concentrates the true goals in the top predicted probability bins.  
+A more curved and steep profile indicates that the model successfully assigns higher probabilities to the shots that are actually goals.  
+
+As shown, the MLP (purple) and Random Forest (blue) capture a higher share of goals within the top percentiles.  
+The SVM + PCA remains the weakest performer, suggesting information loss during dimensionality reduction.  
+
+### Calibration Curve (Reliability Diagram) - Comparison
+![Calibration Curve (Reliability Diagram) – Comparison](milestone2_reliability_curve_comparison.png)
+
+This reliability diagram illustrates how well each model’s predicted probabilities align with the true likelihood of scoring a goal.  
+The diagonal gray line represents perfect calibration — where predicted and actual probabilities match exactly.
+
+The Random Forest and MLP models show reasonably good calibration in the lower to mid probability range but slightly overestimate at higher probabilities.  
+The SVM-based models, particularly the version with PCA, display weaker calibration, often underestimating the true goal frequency in mid to high probability regions.  
+
+
+
+
 ## Evaluate on test set
