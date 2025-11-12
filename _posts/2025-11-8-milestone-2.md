@@ -65,3 +65,31 @@ The final filtered dataset for the **Winnipeg vs Washington** game `2017021065` 
 🔗 [**Dataframe Artifact**](https://wandb.ai/alexandre-fournier-3-universite-de-montreal/ift6758-shot-prediction/artifacts/dataset/wpg_v_wsh_2017021065)
 
 ## Baseline Models
+The baseline logistic regression model using distance achieves a high accuracy of 91%. However, this result is misleading, as the model predicts only "no-goal" outcomes across the entire test set. From the confusion matrix below, we can see that the model only predicted samples to be "no-goals". This high-accuracy is caused by an imbalanced training set, where the number of non-goal samples is significantly more present than goals. This is an indication to use other metrics, such as F1-score, precision, and recall to further test the generalization capabilities of our models.
+
+![Screenshot](milestone2_log_reg_distance_results.png)
+
+
+The graph below shows four different ROC curve (Receiver Operating Characteristic) comparing how well different logistic regression models predict a binary outcome, either goal or non-goal, based on different input feature: distace, angle, and their combination. Each ROC curves plots the false positive rate on the x-axis and the true positive rate on the y-axis. The AUC (Area Under the Curve) summarizes the model’s overall performance: the higher the AUC, the better the model’s ability to discriminate between the two classes. The LogReg - Distance has an AUC of 0.697. The LogReg - Angle has an AUC of 0.589. The LogReg - Distance/Angle has an AUC of 0.703, and the Random baseline, which follows a uniform distribution has an AUC of 0.499. These results show that all models perform better than the random baseline, meaning that they capture some relationship between features and the target. The LogReg - Distance/Angle model performs the best as combining both features captures more information about the event of the shot.
+
+![Screenshot](milestone2_baseline_models_roc_curves.png)
+
+The graph below shows how well the predicted probabilities from different logistic regression models align with the actual observed goal rates. The x-axis shows shot probability percentiles and the y-axis shows the actual goal rate within each percentile. This means that shots with higher predicted probabilities correspond to higher actual goal rates. Distance from the net is the strongest predictor of goal, while the combination of distance and angle results in the best model overall. Whereas the angle feature provides limited predictive value.
+
+![Screenshot](milestone2_baseline_models_goal_rate_predicted_probability.png)
+
+The graph below shows how well different models capture actual goals as you move through percentiles of predicted shot probability. The curves measure how efficiently each model ranks shots from most to least dangerous. The shots are ranked by their predicted probability of being a goal on the x-axis, where 100 is the lowest probability and 0 is the highest probability (percentile). The y-axis is the fraction of all true goals capture up to that percentile. The distance and distance/angle logistic regression models show the most promising results by effectively ranking the shots by true scoring likelihood. The angle-only model performs worse, indicating that distance from the net is a more dominant feature in scoring likelihood.
+
+![Screenshot](milestone2_baseline_models_cumulative.png)
+
+The graph below shows how well each model's predicted probabilities match the true observed frequencies of goals. It measures how trustworthy the model's probability outputs are. The x-axis represents the mean predicted probability and the y-axis shows the actual fraction of shots that turned into goals. A perfectly calibated model would lie exactly on the diagonal line. Distance-based models are. well-calibrated, while the angle logistic regression model performs slightly worse. All logistic regression curves stay near the bottom left region of the graph, which suggests that most shots have a low change of scoring, which matches the hockey dataset.
+
+![Screenshot](milestone2_baseline_models_calibration.png)
+
+[Logistic regression with distance from net](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/r9a8sje4?nw=nwusererictan)
+
+[Logistic regression with angle from net](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/jz8smqnz?nw=nwusererictan)
+
+[Logistic regression with distance and angle from net](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/syty1dfp?nw=nwusererictan)
+
+## Evaluate on test set
