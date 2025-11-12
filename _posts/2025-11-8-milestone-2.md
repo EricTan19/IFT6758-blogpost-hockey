@@ -93,6 +93,83 @@ The graph below shows how well each model's predicted probabilities match the tr
 [Logistic regression with distance and angle from net](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/runs/syty1dfp?nw=nwusererictan)
 
 
+## Advanced Models
+
+In this section, our goal was to expiriment with XGBoost based models to predict the probability that a shot results in a goal.
+
+### XGBoost Baseline 
+
+#### Training and Validation Split 
+
+Used the Milestone 2 advanced_models setup: data from seasons 2016‑2019, booleans coerced to ints, and a 70/30 train/validation split stratified on goal. Training runs the preprocessing/XGB pipeline with grid search over tree depth, learning rate, etc., and validation metrics (ROC, goal-rate buckets, cumulative capture, calibration) are computed on the held-out 30%.
+
+#### Logistic Regression baseline comparison
+
+Compared with the simple Logistic Regression baselines (distance-only AUC 0.697, angle-only 0.589, distance+angle 0.703), the XGBoost baseline that ingests all engineered features reaches ROC‑AUC ≈ 0.715 and produces much steeper goal-rate curves in the top deciles (≈22% goals in the top 10% vs. ≈20% for the best LogReg). Calibration is also closer to the diagonal, especially in the mid-probability bins where XGB captures the bulk of goals while LogReg underestimates
+
+[XGB Baseline](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/artifacts/model/question_2_all_features-model/v1)
+
+### Hyperparameter Tunning
+
+For the XGBoost baseline we wrap the model in the build_pipeline transformer (numeric passthrough + categorical One‑Hot) and run GridSearchCV with a 5‑fold StratifiedKFold (random_state=42) on n_estimators ∈ {100, 300}, max_depth ∈ {4, 6, 8}, learning_rate ∈ {0.05, 0.1}, subsample ∈ {0.8, 1.0}, and colsample_bytree ∈ {0.8, 1.0}. The grid is evaluated with ROC‑AUC so each candidate is scored on balanced folds before we keep the best estimator and evaluate it on the 30 % hold‑out set.
+
+Because the assignment instructions were ambiguous about whether “Part 4 created features” should replace or complement the raw columns, we trained two pipelines: (a) all original features + the engineered ones from Part 4, and (b) only the Part 4 created features. Both used the same grid-search CV setup above. The full-feature pipeline consistently delivered higher ROC‑AUC and better lift curves, so we focused the downstream analysis on that configuration.
+
+[XGB With Only Created Features](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/artifacts/model/question_2_created_features-model/v1)
+
+[XGB With All Features](https://wandb.ai/IFT67582025-B2/ift6758-shot-prediction/artifacts/model/question_2_all_features-model/v1)
+
+### Feature Selection
+
+We benchmarked four selection strategies (table below) within the identical preprocessing → XGBoost pipeline. The control row (`none`) simply feeds all 39 engineered features (see full list beneath the table) through GridSearchCV and delivers the best ROC‑AUC (0.7829 ± 0.0027). Because no column exhibits zero variance, `variance_threshold` produces an identical feature set and reproduces the same score, confirming that every signal contributes some variability worth retaining.
+
+| strategy                   | mean_score | std_score | n_features | selected_features                                                       |
+|----------------------------|------------|-----------|------------|-------------------------------------------------------------------------|
+| none                       | 0.782909   | 0.002709  | 39         | [num__game_id, num__game_seconds, num__season, …]                       |
+| variance_threshold         | 0.782909   | 0.002709  | 39         | [num__game_id, num__game_seconds, num__season, …]                       |
+| select_from_model_logistic | 0.776633   | 0.003017  | 20         | [num__game_seconds, num__season, num__game_period, …]                   |
+| select_kbest_f             | 0.766264   | 0.001894  | 20         | [num__game_seconds, num__game_period, num__shot_distance, …]            |
+
+For the `select_from_model_logistic` row we use a logistic-regression surrogate to drop coefficients below the median, halving the space to 20 predictors centered on game state and shot context (`num__game_seconds`, `num__season`, `num__shot_distance`, etc.). That pruning costs roughly 0.006 ROC‑AUC, as seen in the table. The univariate `select_kbest_f` recipe keeps 20 features chosen via F-tests; it leans heavily on distance/angle and last-event categories and slips further to 0.766 ROC‑AUC, highlighting that ignoring multivariate interactions harms the boosted trees. Ultimately, the table shows that retaining the full engineered feature mix—either directly (`none`) or trivially via variance filtering—remains the optimal choice for capturing goal-probability nuances.
+
+**Selected features for `none` / `variance_threshold`:**
+```
+['num__game_id', 'num__game_seconds', 'num__season', 'num__game_period', 'num__x', 'num__y', 'num__shot_distance', 'num__shot_angle', 'num__last_event_x', 'num__last_event_y', 'num__time_from_last_event', 'num__distance_from_last_event', 'num__rebound', 'num__change_in_shot_angle', 'num__speed', 'num__friendly_skaters', 'num__opposing_skaters', 'num__pp_time_seconds', 'cat__shot_type_backhand', 'cat__shot_type_deflected', 'cat__shot_type_slap', 'cat__shot_type_snap', 'cat__shot_type_tip-in', 'cat__shot_type_wrap-around', 'cat__shot_type_wrist', 'cat__last_event_type_blocked-shot', 'cat__last_event_type_delayed-penalty', 'cat__last_event_type_faceoff', 'cat__last_event_type_game-end', 'cat__last_event_type_giveaway', 'cat__last_event_type_goal', 'cat__last_event_type_hit', 'cat__last_event_type_missed-shot', 'cat__last_event_type_penalty', 'cat__last_event_type_period-end', 'cat__last_event_type_period-start', 'cat__last_event_type_shot-on-goal', 'cat__last_event_type_stoppage', 'cat__last_event_type_takeaway']
+```
+
+**Selected features for `select_from_model_logistic`:**
+```
+['num__game_seconds', 'num__season', 'num__game_period', 'num__y', 'num__shot_distance', 'num__shot_angle', 'num__last_event_x', 'num__last_event_y', 'num__time_from_last_event', 'num__distance_from_last_event', 'num__rebound', 'num__change_in_shot_angle', 'num__speed', 'num__friendly_skaters', 'num__opposing_skaters', 'num__pp_time_seconds', 'cat__shot_type_slap', 'cat__shot_type_tip-in', 'cat__last_event_type_faceoff', 'cat__last_event_type_shot-on-goal']
+```
+
+**Selected features for `select_kbest_f`:**
+```
+['num__game_seconds', 'num__game_period', 'num__shot_distance', 'num__shot_angle', 'num__rebound', 'num__change_in_shot_angle', 'num__speed', 'num__friendly_skaters', 'num__opposing_skaters', 'num__pp_time_seconds', 'cat__shot_type_backhand', 'cat__shot_type_deflected', 'cat__shot_type_slap', 'cat__shot_type_tip-in', 'cat__last_event_type_faceoff', 'cat__last_event_type_goal', 'cat__last_event_type_hit', 'cat__last_event_type_period-start', 'cat__last_event_type_shot-on-goal', 'cat__last_event_type_stoppage']
+```
+The SHAP waterfall for the top-decile shot puts concrete intuition behind the table’s numbers: `num__shot_distance` delivers the largest downward push on the log-odds (a long shot makes a goal unlikely), while `num__friendly_skaters`, `cat__shot_type_slap`, and `num__shot_angle` counterbalance with sizable positive contributions. Notice how every highlighted feature in the plot belongs to the 39-variable set retained by the `none`/`variance_threshold` rows: `cat__shot_type_wrist`, `cat__shot_type_backhand`, and `num__game_seconds` all appear in that list but many are removed once we restrict ourselves to 20 features. When `select_from_model_logistic` prunes the space to the features listed above, the SHAP figure hints at what is lost: secondary cues such as `cat__shot_type_wrist` or `num__y` still influence the boosted trees for specific plays, yet they fall below the logistic median-weight threshold and the AUC drops to 0.7766. The univariate `select_kbest_f` recipe trims even more aggressively, discarding contextual columns like `cat__shot_type_backhand` despite their localized importance in the SHAP plot, which explains the further decline to 0.7663 ROC-AUC. In short, the graph illustrates that even seemingly modest contributors from the full 39-feature roster participate in the additive explanation of real shots; stripping them out (rows 2–3 of the table) not only shrinks the feature list but also removes the very terms that help the XGBoost model capture nuanced goal probability patterns.
+
+![Screenshot](milestone2_shap.png)
+
+
+As we can see on the figures below higher-capacity XGBoost wins across all four validation views from the Milestone 2 70/30 split (2016–2019 shots, stratified on goal).
+
+The ROC plot shows the all-feature XGBoost (orange) dominating the curve: its AUC climbs to 0.788, clearly above both the baseline (blue, 0.715) and the created-only run (green, 0.729), so it reaches higher true-positive rates for the same false-positive cost.
+
+![Screenshot](milestone2_q5_1.png)
+
+The goal-rate-by-percentile chart confirms that advantage in the ranking head: at the 90–100 % bucket the all-feature model converts ~33 % of shots into goals, beating the baseline ~22 % and the created-only model’s ~29 %, with the gap shrinking but persisting through the mid-deciles.
+
+![Screenshot](milestone2_q5_2.png)
+
+The cumulative capture curve illustrates lift across the sample: the dashed orange line amasses roughly 80 % of goals by the time it has scored the top 40 % of shots, while the blue line needs more than half the dataset to reach the same coverage, indicating stronger prioritization from the full feature set.
+
+![Screenshot](milestone2_q5_3.png)
+
+Finally, the reliability diagram shows calibration improvements: the orange markers sit closest to the diagonal between 0.2 and 0.6 predicted probability, meaning the all-feature model’s probabilities match observed goal frequencies better than the underconfident blue curve and the more erratic green created-only curve.
+
+![Screenshot](milestone2_q5_4.png)
+
+### Feature Engineering 
 
 ## Give it your best shot!
 
